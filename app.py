@@ -7,8 +7,8 @@ from google.oauth2.service_account import Credentials
 from io import BytesIO
 
 # ================= PASSWORDS =================
-ADMIN_PASS = "tushar07_"
-PAPA_PASS = "lalitnemade"
+ADMIN_PASS = "1111"
+PAPA_PASS = "2222"
 
 # ================= SETTINGS =================
 SHEET_NAME = "DadBusinessAttendance"
@@ -36,11 +36,12 @@ creds = Credentials.from_service_account_info(
 client = gspread.authorize(creds)
 book = client.open(SHEET_NAME)
 
+# ================= AUTO CREATE SHEETS =================
 def get_or_create(title, headers):
     try:
         ws = book.worksheet(title)
     except:
-        ws = book.add_worksheet(title=title, rows="2000", cols="10")
+        ws = book.add_worksheet(title=title, rows="3000", cols="10")
         ws.append_row(headers)
     return ws
 
@@ -105,6 +106,11 @@ else:
     today_names = []
 
     if not existing.empty:
+
+        # 🔒 safety for old data
+        if "Deleted" not in existing.columns:
+            existing["Deleted"] = "NO"
+
         today_names = existing[
             (existing["Date"] == today) &
             (existing["Deleted"] == "NO")
@@ -143,11 +149,13 @@ else:
 
     if not df.empty:
 
+        if "Deleted" not in df.columns:
+            df["Deleted"] = "NO"
+
         df = df[df["Deleted"] == "NO"]
 
-        # 🔍 search
+        # 🔍 name search
         search = st.text_input("Search name")
-
         if search:
             df = df[df["Name"].str.contains(search, case=False)]
 
@@ -159,9 +167,6 @@ else:
 
         if date_filter != "All":
             df = df[df["Date"] == date_filter]
-
-        # 🧮 daily total banana
-        if date_filter != "All":
             st.info(f"🍌 Total Banana: {df['Banana'].sum()}")
 
         # papa vs admin view
@@ -197,13 +202,14 @@ else:
         st.divider()
         st.subheader("🗑️ Admin Delete")
 
-        del_name = st.selectbox("Select name", df["Name"].unique())
-        del_date = st.selectbox("Select date", df["Date"].unique())
+        del_name = st.selectbox("Select Name", df["Name"].unique())
+        del_date = st.selectbox("Select Date", df["Date"].unique())
 
         if st.button("Delete selected record"):
             all_rows = attendance_ws.get_all_values()
+
             for i in range(1, len(all_rows)):
                 if all_rows[i][0] == del_date and all_rows[i][2] == del_name:
-                    attendance_ws.update_cell(i+1, 6, "YES")
+                    attendance_ws.update_cell(i + 1, 6, "YES")
 
-            st.success("Record soft-deleted ✅")
+            st.success("Record deleted safely ✅")
