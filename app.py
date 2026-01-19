@@ -173,11 +173,11 @@ else:
         df = df[df["Deleted"] == "NO"]
 
         # 🔍 name search
-       search = st.text_input("Search name (English or Marathi)")
+        search = st.text_input("Search name (English or Marathi)")
 
-if search:
-    marathi_search = eng_to_marathi(search)
-    df = df[df["Name"].str.contains(marathi_search, case=False)]
+        if search:
+          marathi_search = eng_to_marathi(search)
+          df = df[df["Name"].str.contains(marathi_search, case=False)]
 
 
         # 📅 date filter
