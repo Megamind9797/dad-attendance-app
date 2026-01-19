@@ -6,12 +6,11 @@ from google.oauth2.service_account import Credentials
 from io import BytesIO
 
 # ================= LOGIN PASSWORDS =================
-ADMIN_PASS = "tushar07_"
-PAPA_PASS = "lalitnemade"
+ADMIN_PASS = "1111"
+PAPA_PASS = "2222"
 
 # ================= SETTINGS =================
 SHEET_NAME = "DadBusinessAttendance"
-
 ATTENDANCE_SHEET = "Attendance"
 LOGIN_SHEET = "Login_Log"
 
@@ -34,8 +33,24 @@ creds = Credentials.from_service_account_info(
 client = gspread.authorize(creds)
 book = client.open(SHEET_NAME)
 
-attendance_ws = book.worksheet(ATTENDANCE_SHEET)
-login_ws = book.worksheet(LOGIN_SHEET)
+# ================= AUTO CREATE SHEETS =================
+def get_or_create(title, headers):
+    try:
+        ws = book.worksheet(title)
+    except:
+        ws = book.add_worksheet(title=title, rows="1000", cols="10")
+        ws.append_row(headers)
+    return ws
+
+attendance_ws = get_or_create(
+    ATTENDANCE_SHEET,
+    ["Date", "Time", "Name", "Status", "Banana"]
+)
+
+login_ws = get_or_create(
+    LOGIN_SHEET,
+    ["Date", "Time", "User"]
+)
 
 # ================= SESSION =================
 if "role" not in st.session_state:
@@ -111,8 +126,7 @@ else:
     st.divider()
     st.subheader("📅 Attendance History")
 
-    records = attendance_ws.get_all_records()
-    df = pd.DataFrame(records)
+    df = pd.DataFrame(attendance_ws.get_all_records())
 
     if not df.empty:
 
@@ -142,7 +156,6 @@ else:
 
     # ================= ADMIN LOGIN LOG =================
     if st.session_state.role == "admin":
-
         st.divider()
         st.subheader("👑 Login Activity")
 
