@@ -5,7 +5,15 @@ import gspread
 from google.oauth2.service_account import Credentials
 from io import BytesIO
 
-# ================= SETTINGS =================
+# ==================================================
+# LOGIN PASSWORDS (TEMP – GUARANTEED WORKING)
+# ==================================================
+ADMIN_PASS = "tushar07_"
+PAPA_PASS = "lalitnemade"
+
+# ==================================================
+# SETTINGS
+# ==================================================
 SHEET_NAME = "DadBusinessAttendance"
 WORKSHEET = "Data"
 
@@ -14,7 +22,9 @@ NAMES = [
     "संजय वाघुळे", "उषा भालेराव", "नावदेव आई"
 ]
 
-# ================= GOOGLE AUTH =================
+# ==================================================
+# GOOGLE AUTH
+# ==================================================
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
@@ -28,11 +38,15 @@ creds = Credentials.from_service_account_info(
 client = gspread.authorize(creds)
 sheet = client.open(SHEET_NAME).worksheet(WORKSHEET)
 
-# ================= SESSION =================
+# ==================================================
+# SESSION
+# ==================================================
 if "role" not in st.session_state:
     st.session_state.role = None
 
-# ================= LOGIN PAGE =================
+# ==================================================
+# LOGIN PAGE
+# ==================================================
 if st.session_state.role is None:
 
     st.title("🔐 Login")
@@ -41,18 +55,20 @@ if st.session_state.role is None:
 
     if st.button("Login"):
 
-        if password == st.secrets.get("admin_password"):
+        if password == ADMIN_PASS:
             st.session_state.role = "admin"
             st.experimental_rerun()
 
-        elif password == st.secrets.get("papa_password"):
+        elif password == PAPA_PASS:
             st.session_state.role = "papa"
             st.experimental_rerun()
 
         else:
-            st.error("Wrong password")
+            st.error("❌ Wrong password")
 
-# ================= DASHBOARD =================
+# ==================================================
+# DASHBOARD
+# ==================================================
 else:
 
     st.sidebar.success(f"Logged in as: {st.session_state.role}")
@@ -67,7 +83,7 @@ else:
     st.title("🍌 Daily Attendance System")
     st.subheader(f"Date: {today}")
 
-    # ============ COMMON ENTRY ============
+    # ================= Attendance =================
     st.markdown("### 📝 Today Attendance")
 
     data = []
@@ -90,9 +106,9 @@ else:
     if st.button("💾 Save Today Data"):
         for row in data:
             sheet.append_row(row)
-        st.success("Data saved successfully")
+        st.success("✅ Data saved successfully")
 
-    # ============ HISTORY ============
+    # ================= History =================
     st.divider()
     st.subheader("📅 History")
 
@@ -115,7 +131,7 @@ else:
             file_name=f"{selected_date}.xlsx"
         )
 
-    # ============ ADMIN ONLY ============
+    # ================= ADMIN ONLY =================
     if st.session_state.role == "admin" and not df.empty:
         st.divider()
         st.subheader("👑 Admin Panel")
@@ -142,4 +158,3 @@ else:
             data=out.getvalue(),
             file_name=f"{month}_report.xlsx"
         )
-
