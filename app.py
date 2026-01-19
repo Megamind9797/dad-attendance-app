@@ -5,10 +5,28 @@ import pytz
 import gspread
 from google.oauth2.service_account import Credentials
 from io import BytesIO
+import requests
+
+def eng_to_marathi(text):
+    try:
+        url = "https://inputtools.google.com/request"
+        params = {
+            "text": text,
+            "itc": "mr-t-i0-und"
+        }
+        res = requests.get(url, params=params, timeout=3)
+        data = res.json()
+
+        if data[0] == "SUCCESS":
+            return data[1][0][1][0]
+        return text
+    except:
+        return text
+
 
 # ================= PASSWORDS =================
-ADMIN_PASS = "1111"
-PAPA_PASS = "2222"
+ADMIN_PASS = "tushar07_"
+PAPA_PASS = "lalitnemade"
 
 # ================= SETTINGS =================
 SHEET_NAME = "DadBusinessAttendance"
