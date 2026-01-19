@@ -28,16 +28,28 @@ creds = Credentials.from_service_account_info(
 client = gspread.authorize(creds)
 sheet = client.open(SHEET_NAME).worksheet(WORKSHEET)
 
-# ---------------- UI ----------------
-st.set_page_config(page_title="Attendance", layout="wide")
+# ---------------- LOGIN ----------------
 st.title("🍌 Daily Attendance System")
 
+password = st.text_input("Enter password (admin only)", type="password")
+
+is_admin = password == st.secrets["admin_password"]
+
+if is_admin:
+    st.success("Admin mode enabled 👑")
+else:
+    st.info("User mode (Papa)")
+
+# ---------------- COMMON ----------------
 today = datetime.now().strftime("%d-%m-%Y")
 time_now = datetime.now().strftime("%H:%M:%S")
 
 st.subheader(f"Date: {today}")
 
 data = []
+
+# ---------------- ATTENDANCE ENTRY ----------------
+st.markdown("### 📝 Today Attendance")
 
 for name in NAMES:
     c1, c2, c3 = st.columns([3,2,2])
@@ -54,33 +66,64 @@ for name in NAMES:
     status = "Present" if present else "Absent"
     data.append([today, time_now, name, status, banana])
 
-# ---------------- SAVE ----------------
 if st.button("💾 Save Today Data"):
     for row in data:
         sheet.append_row(row)
-    st.success("✅ Data saved successfully")
+    st.success("Data saved successfully ✅")
 
 # ---------------- HISTORY ----------------
 st.divider()
-st.subheader("📅 View Old Records")
+st.subheader("📅 History")
 
 records = sheet.get_all_records()
 df = pd.DataFrame(records)
 
 if not df.empty:
-    selected_date = st.selectbox(
-        "Select Date",
-        sorted(df["Date"].unique(), reverse=True)
-    )
 
-    view_df = df[df["Date"] == selected_date]
-    st.dataframe(view_df)
+    dates = sorted(df["Date"].unique(), reverse=True)
+    selected_date = st.selectbox("Select Date", dates)
 
+    show_df = df[df["Date"] == selected_date]
+
+    st.dataframe(show_df)
+
+    # Excel download allowed for both
     output = BytesIO()
-    view_df.to_excel(output, index=False)
+    show_df.to_excel(output, index=False)
 
     st.download_button(
         "⬇ Download Excel",
         data=output.getvalue(),
         file_name=f"{selected_date}.xlsx"
     )
+
+# ---------------- ADMIN PANEL ----------------
+if is_admin:
+    st.divider()
+    st.subheader("👑 Admin Panel")
+
+    st.write("📊 Monthly Summary")
+
+    df["Month"] = pd.to_datetime(df["Date"], dayfirst=True).dt.strftime("%B %Y")
+
+    month = st.selectbox("Select Month", df["Month"].unique())
+
+    mdf = df[df["Month"] == month]
+
+    summary = mdf.groupby("Name").agg(
+        Total_Days=("Status", "count"),
+        Present_Days=("Status", lambda x: (x == "Present").sum()),
+        Total_Banana=("Banana", "sum")
+    )
+
+    st.dataframe(summary)
+
+    out = BytesIO()
+    summary.to_excel(out)
+
+    st.download_button(
+        "⬇ Download Monthly Report",
+        data=out.getvalue(),
+        file_name=f"{month}_report.xlsx"
+    )
+
