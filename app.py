@@ -11,7 +11,9 @@ PAPA_PASS = "lalitnemade"
 
 # ================= SETTINGS =================
 SHEET_NAME = "DadBusinessAttendance"
-WORKSHEET = "Data"
+
+ATTENDANCE_SHEET = "Attendance"
+LOGIN_SHEET = "Login_Log"
 
 NAMES = [
     "पंडितबाबा", "हिरामणदेव", "विमलबाई", "शाहिद",
@@ -30,7 +32,10 @@ creds = Credentials.from_service_account_info(
 )
 
 client = gspread.authorize(creds)
-sheet = client.open(SHEET_NAME).worksheet(WORKSHEET)
+book = client.open(SHEET_NAME)
+
+attendance_ws = book.worksheet(ATTENDANCE_SHEET)
+login_ws = book.worksheet(LOGIN_SHEET)
 
 # ================= SESSION =================
 if "role" not in st.session_state:
@@ -43,18 +48,19 @@ if st.session_state.role is None:
     password = st.text_input("Enter password", type="password")
 
     if st.button("Login"):
+
         now = datetime.now()
-        d = now.strftime("%d-%m-%Y")
-        t = now.strftime("%H:%M:%S")
+        date_str = now.strftime("%d-%m-%Y")
+        time_str = now.strftime("%I:%M %p")
 
         if password == ADMIN_PASS:
             st.session_state.role = "admin"
-            sheet.append_row([d, t, "admin", "LOGIN", 0])
+            login_ws.append_row([date_str, time_str, "admin"])
             st.rerun()
 
         elif password == PAPA_PASS:
             st.session_state.role = "papa"
-            sheet.append_row([d, t, "papa", "LOGIN", 0])
+            login_ws.append_row([date_str, time_str, "papa"])
             st.rerun()
 
         else:
@@ -69,8 +75,9 @@ else:
         st.session_state.role = None
         st.rerun()
 
-    today = datetime.now().strftime("%d-%m-%Y")
-    time_now = datetime.now().strftime("%H:%M:%S")
+    now = datetime.now()
+    today = now.strftime("%d-%m-%Y")
+    time_now = now.strftime("%I:%M %p")
 
     st.title("🍌 Daily Attendance System")
     st.subheader(f"Date: {today}")
@@ -97,24 +104,22 @@ else:
 
     if st.button("💾 Save Today Data"):
         for row in data:
-            sheet.append_row(row)
-        st.success("✅ Data saved")
+            attendance_ws.append_row(row)
+        st.success("✅ Attendance saved successfully")
 
     # ================= HISTORY =================
     st.divider()
-    st.subheader("📅 History")
+    st.subheader("📅 Attendance History")
 
-    records = sheet.get_all_records()
+    records = attendance_ws.get_all_records()
     df = pd.DataFrame(records)
 
     if not df.empty:
 
-        attendance_df = df[df["Status"].isin(["Present", "Absent"])]
-
         if st.session_state.role == "papa":
-            attendance_df = attendance_df[["Date", "Name", "Status", "Banana"]]
+            df_show = df[["Date", "Name", "Status", "Banana"]]
         else:
-            attendance_df = attendance_df[["Date", "Time", "Name", "Status", "Banana"]]
+            df_show = df[["Date", "Time", "Name", "Status", "Banana"]]
 
         def color_status(val):
             if val == "Present":
@@ -123,12 +128,11 @@ else:
                 return "background-color: #FF9999"
             return ""
 
-        styled = attendance_df.style.applymap(color_status, subset=["Status"])
-
+        styled = df_show.style.applymap(color_status, subset=["Status"])
         st.dataframe(styled, use_container_width=True)
 
         output = BytesIO()
-        attendance_df.to_excel(output, index=False)
+        df_show.to_excel(output, index=False)
 
         st.download_button(
             "⬇ Download Excel",
@@ -136,10 +140,11 @@ else:
             file_name="attendance.xlsx"
         )
 
-    # ================= ADMIN PANEL =================
-    if st.session_state.role == "admin" and not df.empty:
-        st.divider()
-        st.subheader("👑 Admin Activity Log")
+    # ================= ADMIN LOGIN LOG =================
+    if st.session_state.role == "admin":
 
-        log_df = df[df["Status"] == "LOGIN"]
+        st.divider()
+        st.subheader("👑 Login Activity")
+
+        log_df = pd.DataFrame(login_ws.get_all_records())
         st.dataframe(log_df, use_container_width=True)
