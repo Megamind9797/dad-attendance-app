@@ -1,6 +1,7 @@
 import streamlit as st
 import pandas as pd
 from datetime import datetime
+import pytz
 import gspread
 from google.oauth2.service_account import Credentials
 from io import BytesIO
@@ -18,6 +19,9 @@ NAMES = [
     "पंडितबाबा", "हिरामणदेव", "विमलबाई", "शाहिद",
     "संजय वाघुळे", "उषा भालेराव", "नावदेव आई"
 ]
+
+# ================= TIMEZONE =================
+india = pytz.timezone("Asia/Kolkata")
 
 # ================= GOOGLE AUTH =================
 scope = [
@@ -56,15 +60,16 @@ login_ws = get_or_create(
 if "role" not in st.session_state:
     st.session_state.role = None
 
-# ================= LOGIN =================
+# ================= LOGIN PAGE =================
 if st.session_state.role is None:
 
     st.title("🔐 Login")
+
     password = st.text_input("Enter password", type="password")
 
     if st.button("Login"):
 
-        now = datetime.now()
+        now = datetime.now(india)
         date_str = now.strftime("%d-%m-%Y")
         time_str = now.strftime("%I:%M %p")
 
@@ -79,7 +84,7 @@ if st.session_state.role is None:
             st.rerun()
 
         else:
-            st.error("Wrong password")
+            st.error("❌ Wrong password")
 
 # ================= DASHBOARD =================
 else:
@@ -90,7 +95,7 @@ else:
         st.session_state.role = None
         st.rerun()
 
-    now = datetime.now()
+    now = datetime.now(india)
     today = now.strftime("%d-%m-%Y")
     time_now = now.strftime("%I:%M %p")
 
@@ -156,6 +161,7 @@ else:
 
     # ================= ADMIN LOGIN LOG =================
     if st.session_state.role == "admin":
+
         st.divider()
         st.subheader("👑 Login Activity")
 
