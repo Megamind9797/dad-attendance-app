@@ -5,7 +5,7 @@ import gspread
 from google.oauth2.service_account import Credentials
 from io import BytesIO
 
-# ---------------- SETTINGS ----------------
+# ================== SETTINGS ==================
 SHEET_NAME = "DadBusinessAttendance"
 WORKSHEET = "Data"
 
@@ -14,7 +14,7 @@ NAMES = [
     "संजय वाघुळे", "उषा भालेराव", "नावदेव आई"
 ]
 
-# ---------------- GOOGLE AUTH ----------------
+# ================== GOOGLE AUTH ==================
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
@@ -28,31 +28,34 @@ creds = Credentials.from_service_account_info(
 client = gspread.authorize(creds)
 sheet = client.open(SHEET_NAME).worksheet(WORKSHEET)
 
-# ---------------- LOGIN ----------------
+# ================== LOGIN ==================
+st.set_page_config(page_title="Attendance System", layout="wide")
 st.title("🍌 Daily Attendance System")
 
-password = st.text_input("Enter password (admin only)", type="password")
+password = st.text_input("Enter admin password (leave empty for papa)", type="password")
 
-is_admin = password == st.secrets["admin_password"]
+# SAFE admin check (never crashes)
+admin_pass = st.secrets.get("admin_password", "")
+is_admin = password == admin_pass
 
 if is_admin:
-    st.success("Admin mode enabled 👑")
+    st.success("👑 Admin mode enabled")
 else:
-    st.info("User mode (Papa)")
+    st.info("👨‍🌾 Papa mode")
 
-# ---------------- COMMON ----------------
+# ================== DATE / TIME ==================
 today = datetime.now().strftime("%d-%m-%Y")
 time_now = datetime.now().strftime("%H:%M:%S")
 
 st.subheader(f"Date: {today}")
 
-data = []
-
-# ---------------- ATTENDANCE ENTRY ----------------
+# ================== ATTENDANCE ==================
 st.markdown("### 📝 Today Attendance")
 
+data = []
+
 for name in NAMES:
-    c1, c2, c3 = st.columns([3,2,2])
+    c1, c2, c3 = st.columns([3, 2, 2])
 
     with c1:
         st.write(name)
@@ -61,7 +64,7 @@ for name in NAMES:
         present = st.checkbox("Present", key=name)
 
     with c3:
-        banana = st.number_input("Banana", 0, step=1, key=name+"_b")
+        banana = st.number_input("Banana", min_value=0, step=1, key=name + "_b")
 
     status = "Present" if present else "Absent"
     data.append([today, time_now, name, status, banana])
@@ -69,11 +72,11 @@ for name in NAMES:
 if st.button("💾 Save Today Data"):
     for row in data:
         sheet.append_row(row)
-    st.success("Data saved successfully ✅")
+    st.success("✅ Data saved successfully")
 
-# ---------------- HISTORY ----------------
+# ================== HISTORY ==================
 st.divider()
-st.subheader("📅 History")
+st.subheader("📅 View History")
 
 records = sheet.get_all_records()
 df = pd.DataFrame(records)
@@ -81,15 +84,13 @@ df = pd.DataFrame(records)
 if not df.empty:
 
     dates = sorted(df["Date"].unique(), reverse=True)
-    selected_date = st.selectbox("Select Date", dates)
+    selected_date = st.selectbox("Select date", dates)
 
-    show_df = df[df["Date"] == selected_date]
+    view_df = df[df["Date"] == selected_date]
+    st.dataframe(view_df, use_container_width=True)
 
-    st.dataframe(show_df)
-
-    # Excel download allowed for both
     output = BytesIO()
-    show_df.to_excel(output, index=False)
+    view_df.to_excel(output, index=False)
 
     st.download_button(
         "⬇ Download Excel",
@@ -97,16 +98,14 @@ if not df.empty:
         file_name=f"{selected_date}.xlsx"
     )
 
-# ---------------- ADMIN PANEL ----------------
-if is_admin:
+# ================== ADMIN PANEL ==================
+if is_admin and not df.empty:
     st.divider()
     st.subheader("👑 Admin Panel")
 
-    st.write("📊 Monthly Summary")
-
     df["Month"] = pd.to_datetime(df["Date"], dayfirst=True).dt.strftime("%B %Y")
 
-    month = st.selectbox("Select Month", df["Month"].unique())
+    month = st.selectbox("Select month", df["Month"].unique())
 
     mdf = df[df["Month"] == month]
 
@@ -116,7 +115,7 @@ if is_admin:
         Total_Banana=("Banana", "sum")
     )
 
-    st.dataframe(summary)
+    st.dataframe(summary, use_container_width=True)
 
     out = BytesIO()
     summary.to_excel(out)
@@ -126,4 +125,3 @@ if is_admin:
         data=out.getvalue(),
         file_name=f"{month}_report.xlsx"
     )
-
