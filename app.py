@@ -6,8 +6,8 @@ from google.oauth2.service_account import Credentials
 from io import BytesIO
 
 # ================= LOGIN PASSWORDS =================
-ADMIN_PASS = "1111"
-PAPA_PASS = "2222"
+ADMIN_PASS = "tushar07_"
+PAPA_PASS = "lalitnemade"
 
 # ================= SETTINGS =================
 SHEET_NAME = "DadBusinessAttendance"
