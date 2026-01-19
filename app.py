@@ -5,15 +5,11 @@ import gspread
 from google.oauth2.service_account import Credentials
 from io import BytesIO
 
-# ==================================================
-# LOGIN PASSWORDS (TEMP – SAFE & WORKING)
-# ==================================================
+# ================= LOGIN PASSWORDS =================
 ADMIN_PASS = "tushar07_"
 PAPA_PASS = "lalitnemade"
 
-# ==================================================
-# SETTINGS
-# ==================================================
+# ================= SETTINGS =================
 SHEET_NAME = "DadBusinessAttendance"
 WORKSHEET = "Data"
 
@@ -22,9 +18,7 @@ NAMES = [
     "संजय वाघुळे", "उषा भालेराव", "नावदेव आई"
 ]
 
-# ==================================================
-# GOOGLE AUTH
-# ==================================================
+# ================= GOOGLE AUTH =================
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
@@ -38,37 +32,35 @@ creds = Credentials.from_service_account_info(
 client = gspread.authorize(creds)
 sheet = client.open(SHEET_NAME).worksheet(WORKSHEET)
 
-# ==================================================
-# SESSION STATE
-# ==================================================
+# ================= SESSION =================
 if "role" not in st.session_state:
     st.session_state.role = None
 
-# ==================================================
-# LOGIN PAGE
-# ==================================================
+# ================= LOGIN =================
 if st.session_state.role is None:
 
     st.title("🔐 Login")
-
     password = st.text_input("Enter password", type="password")
 
     if st.button("Login"):
+        now = datetime.now()
+        d = now.strftime("%d-%m-%Y")
+        t = now.strftime("%H:%M:%S")
 
         if password == ADMIN_PASS:
             st.session_state.role = "admin"
+            sheet.append_row([d, t, "admin", "LOGIN", 0])
             st.rerun()
 
         elif password == PAPA_PASS:
             st.session_state.role = "papa"
+            sheet.append_row([d, t, "papa", "LOGIN", 0])
             st.rerun()
 
         else:
-            st.error("❌ Wrong password")
+            st.error("Wrong password")
 
-# ==================================================
-# DASHBOARD
-# ==================================================
+# ================= DASHBOARD =================
 else:
 
     st.sidebar.success(f"Logged in as: {st.session_state.role}")
@@ -83,7 +75,7 @@ else:
     st.title("🍌 Daily Attendance System")
     st.subheader(f"Date: {today}")
 
-    # ================= Attendance =================
+    # ================= ATTENDANCE =================
     st.markdown("### 📝 Today Attendance")
 
     data = []
@@ -98,7 +90,7 @@ else:
             present = st.checkbox("Present", key=name)
 
         with c3:
-            banana = st.number_input("Banana", min_value=0, step=1, key=name + "_b")
+            banana = st.number_input("Banana", 0, step=1, key=name + "_b")
 
         status = "Present" if present else "Absent"
         data.append([today, time_now, name, status, banana])
@@ -106,9 +98,9 @@ else:
     if st.button("💾 Save Today Data"):
         for row in data:
             sheet.append_row(row)
-        st.success("✅ Data saved successfully")
+        st.success("✅ Data saved")
 
-    # ================= History =================
+    # ================= HISTORY =================
     st.divider()
     st.subheader("📅 History")
 
@@ -116,45 +108,38 @@ else:
     df = pd.DataFrame(records)
 
     if not df.empty:
-        dates = sorted(df["Date"].unique(), reverse=True)
-        selected_date = st.selectbox("Select Date", dates)
 
-        view_df = df[df["Date"] == selected_date]
-        st.dataframe(view_df, use_container_width=True)
+        attendance_df = df[df["Status"].isin(["Present", "Absent"])]
+
+        if st.session_state.role == "papa":
+            attendance_df = attendance_df[["Date", "Name", "Status", "Banana"]]
+        else:
+            attendance_df = attendance_df[["Date", "Time", "Name", "Status", "Banana"]]
+
+        def color_status(val):
+            if val == "Present":
+                return "background-color: #90EE90"
+            elif val == "Absent":
+                return "background-color: #FF9999"
+            return ""
+
+        styled = attendance_df.style.applymap(color_status, subset=["Status"])
+
+        st.dataframe(styled, use_container_width=True)
 
         output = BytesIO()
-        view_df.to_excel(output, index=False)
+        attendance_df.to_excel(output, index=False)
 
         st.download_button(
             "⬇ Download Excel",
             data=output.getvalue(),
-            file_name=f"{selected_date}.xlsx"
+            file_name="attendance.xlsx"
         )
 
     # ================= ADMIN PANEL =================
     if st.session_state.role == "admin" and not df.empty:
         st.divider()
-        st.subheader("👑 Admin Panel")
+        st.subheader("👑 Admin Activity Log")
 
-        df["Month"] = pd.to_datetime(df["Date"], dayfirst=True).dt.strftime("%B %Y")
-
-        month = st.selectbox("Select Month", df["Month"].unique())
-
-        mdf = df[df["Month"] == month]
-
-        summary = mdf.groupby("Name").agg(
-            Total_Days=("Status", "count"),
-            Present_Days=("Status", lambda x: (x == "Present").sum()),
-            Total_Banana=("Banana", "sum")
-        )
-
-        st.dataframe(summary, use_container_width=True)
-
-        out = BytesIO()
-        summary.to_excel(out)
-
-        st.download_button(
-            "⬇ Download Monthly Report",
-            data=out.getvalue(),
-            file_name=f"{month}_report.xlsx"
-        )
+        log_df = df[df["Status"] == "LOGIN"]
+        st.dataframe(log_df, use_container_width=True)
