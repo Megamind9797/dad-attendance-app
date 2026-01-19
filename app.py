@@ -6,10 +6,10 @@ from google.oauth2.service_account import Credentials
 from io import BytesIO
 
 # ==================================================
-# LOGIN PASSWORDS (TEMP – GUARANTEED WORKING)
+# LOGIN PASSWORDS (TEMP – SAFE & WORKING)
 # ==================================================
-ADMIN_PASS = "tushar07_"
-PAPA_PASS = "lalitnemade"
+ADMIN_PASS = "1111"
+PAPA_PASS = "2222"
 
 # ==================================================
 # SETTINGS
@@ -39,7 +39,7 @@ client = gspread.authorize(creds)
 sheet = client.open(SHEET_NAME).worksheet(WORKSHEET)
 
 # ==================================================
-# SESSION
+# SESSION STATE
 # ==================================================
 if "role" not in st.session_state:
     st.session_state.role = None
@@ -57,11 +57,11 @@ if st.session_state.role is None:
 
         if password == ADMIN_PASS:
             st.session_state.role = "admin"
-            st.experimental_rerun()
+            st.rerun()
 
         elif password == PAPA_PASS:
             st.session_state.role = "papa"
-            st.experimental_rerun()
+            st.rerun()
 
         else:
             st.error("❌ Wrong password")
@@ -75,7 +75,7 @@ else:
 
     if st.sidebar.button("Logout"):
         st.session_state.role = None
-        st.experimental_rerun()
+        st.rerun()
 
     today = datetime.now().strftime("%d-%m-%Y")
     time_now = datetime.now().strftime("%H:%M:%S")
@@ -98,7 +98,7 @@ else:
             present = st.checkbox("Present", key=name)
 
         with c3:
-            banana = st.number_input("Banana", 0, step=1, key=name + "_b")
+            banana = st.number_input("Banana", min_value=0, step=1, key=name + "_b")
 
         status = "Present" if present else "Absent"
         data.append([today, time_now, name, status, banana])
@@ -131,7 +131,7 @@ else:
             file_name=f"{selected_date}.xlsx"
         )
 
-    # ================= ADMIN ONLY =================
+    # ================= ADMIN PANEL =================
     if st.session_state.role == "admin" and not df.empty:
         st.divider()
         st.subheader("👑 Admin Panel")
