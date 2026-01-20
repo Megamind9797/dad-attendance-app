@@ -7,7 +7,7 @@ import requests
 from google.oauth2.service_account import Credentials
 from io import BytesIO
 
-# ================== CONFIG ==================
+# ================= CONFIG =================
 ADMIN_PASS = "tushar07_"
 PAPA_PASS = "lalitnemade"
 
@@ -18,7 +18,7 @@ LOGIN_SHEET = "Login_Log"
 
 india = pytz.timezone("Asia/Kolkata")
 
-# ================== TRANSLITERATION ==================
+# ================= TRANSLITERATION =================
 def eng_to_marathi(text):
     try:
         url = "https://inputtools.google.com/request"
@@ -31,7 +31,7 @@ def eng_to_marathi(text):
     except:
         return text
 
-# ================== GOOGLE AUTH ==================
+# ================= GOOGLE AUTH =================
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
@@ -64,20 +64,24 @@ attendance_ws = get_or_create(
 workers_ws = get_or_create(WORKERS_SHEET, ["Name"])
 login_ws = get_or_create(LOGIN_SHEET, ["Date","Time","User"])
 
-# ================== SESSION ==================
+# ================= SESSION =================
 if "role" not in st.session_state:
     st.session_state.role = None
 
 if "today_data" not in st.session_state:
     st.session_state.today_data = {}
 
-# ================== LOGIN ==================
+# =====================================================
+# 🔐 LOGIN PAGE (ONLY THIS SHOWS FIRST)
+# =====================================================
 if st.session_state.role is None:
 
     st.title("🔐 Login")
+
     password = st.text_input("Enter password", type="password")
 
     if st.button("Login"):
+
         now = datetime.now(india)
         d = now.strftime("%d-%m-%Y")
         t = now.strftime("%I:%M %p")
@@ -91,22 +95,16 @@ if st.session_state.role is None:
             st.session_state.role = "papa"
             login_ws.append_row([d, t, "papa"])
             st.rerun()
+
         else:
             st.error("Wrong password")
 
-# ================== DASHBOARD ==================
-
-# ================== ADMIN RESET ==================
-if st.session_state.role == "admin":
-
-    st.sidebar.markdown("## 🔄 Admin Control")
-
-    if st.sidebar.button("🔄 Refresh Today"):
-        st.session_state.today_data = {}
-        st.success("✅ Today attendance reset")
-        st.rerun()
-
+# =====================================================
+# 🏠 DASHBOARD (AFTER LOGIN)
+# =====================================================
 else:
+
+    st.title("📋 Attendance Dashboard")
 
     now = datetime.now(india)
     today = now.strftime("%d-%m-%Y")
@@ -118,11 +116,7 @@ else:
         st.session_state.role = None
         st.rerun()
 
-    # ================== LOAD WORKERS ==================
-    workers_df = pd.DataFrame(workers_ws.get_all_records())
-    workers = workers_df["Name"].tolist() if not workers_df.empty else []
-
-    # ================== TODAY TOTAL ==================
+    # ---------------- TODAY TOTAL ----------------
     total_banana = sum(
         v.get("banana", 0) for v in st.session_state.today_data.values()
     )
@@ -130,7 +124,14 @@ else:
     st.sidebar.markdown("## 🍌 Today Total")
     st.sidebar.success(str(total_banana))
 
-    # ================== DOWNLOAD ==================
+    # ---------------- ADMIN RESET ----------------
+    if st.session_state.role == "admin":
+        if st.sidebar.button("🔄 Refresh Today"):
+            st.session_state.today_data = {}
+            st.success("✅ Today reset")
+            st.rerun()
+
+    # ---------------- DOWNLOAD ----------------
     df_att = pd.DataFrame(attendance_ws.get_all_records())
     if not df_att.empty:
         date_sel = st.sidebar.selectbox(
@@ -147,30 +148,33 @@ else:
             file_name=f"{date_sel}.xlsx"
         )
 
-    # ================== ADMIN LOGS ==================
+    # ---------------- ADMIN LOGS ----------------
     if st.session_state.role == "admin":
         st.sidebar.markdown("## 🔐 Login Logs")
         logs_df = pd.DataFrame(login_ws.get_all_records())
         if not logs_df.empty:
             st.sidebar.dataframe(logs_df.tail(10), use_container_width=True)
 
-    # ================== ADD WORKER ==================
-    st.markdown("### ➕ Add Worker")
+    # ---------------- ADD WORKER ----------------
+    st.subheader("➕ Add Worker")
 
-    new_worker = st.text_input("Type name (English or Marathi)")
+    new_worker = st.text_input("Name (English or Marathi)")
 
     if st.button("Add Worker"):
         mar = eng_to_marathi(new_worker.strip())
-        if mar not in workers:
+        if mar not in workers_ws.get_all_values():
             workers_ws.append_row([mar])
-            st.success(f"✅ {mar} added")
+            st.success(f"Added: {mar}")
             st.rerun()
         else:
-            st.warning("Worker already exists")
+            st.warning("Already exists")
 
-    # ================== ATTENDANCE ==================
+    # ---------------- ATTENDANCE ----------------
     st.divider()
-    st.markdown("### 📝 Today Attendance")
+    st.subheader("📝 Today Attendance")
+
+    workers_df = pd.DataFrame(workers_ws.get_all_records())
+    workers = workers_df["Name"].tolist() if not workers_df.empty else []
 
     search = st.text_input("Search name")
 
@@ -215,7 +219,7 @@ else:
 
         st.session_state.today_data[name]["banana"] = banana
 
-    # ================== SAVE ==================
+    # ---------------- SAVE ----------------
     st.divider()
 
     if st.button("💾 Save Attendance"):
@@ -228,4 +232,4 @@ else:
                 data["banana"],
                 "NO"
             ])
-        st.success("✅ Attendance saved successfully")
+        st.success("✅ Attendance saved")
