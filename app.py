@@ -110,12 +110,17 @@ def autofill_workers():
     existing = workers_ws.get_all_values()
     existing_names = [r[0] for r in existing[1:]]
 
-    added = 0
+    rows_to_add = []
+
     for n in OLD_NAMES:
         if n not in existing_names:
-            workers_ws.append_row([n])
-            added += 1
-    return added
+            rows_to_add.append([n])
+
+    if rows_to_add:
+        workers_ws.append_rows(rows_to_add)
+
+    return len(rows_to_add)
+
 
 def upsert_attendance(date, time, name, status, banana):
     rows = attendance_ws.get_all_values()
