@@ -133,33 +133,28 @@ else:
         st.rerun()
 
     # =================================================
-    # TODAY TOTAL BANANA (SIDEBAR)
+    # TODAY TOTAL BANANA
     # =================================================
     df_today = pd.DataFrame(attendance_ws.get_all_records())
-
     today_total = 0
     if not df_today.empty:
-        df_today = df_today[df_today["Date"] == today]
-        if not df_today.empty:
-            today_total = df_today["Banana"].sum()
+        today_total = df_today[df_today["Date"] == today]["Banana"].sum()
 
     st.sidebar.markdown("## 🍌 Today Total")
-    st.sidebar.success(f"Total Banana: {today_total}")
+    st.sidebar.success(f"{today_total}")
 
     # =================================================
-    # DOWNLOAD (SIDEBAR)
+    # DOWNLOAD
     # =================================================
     st.sidebar.markdown("## 📥 Download Attendance")
 
-    df_all = pd.DataFrame(attendance_ws.get_all_records())
-
-    if not df_all.empty:
+    if not df_today.empty:
         date_sel = st.sidebar.selectbox(
-            "Select date",
-            sorted(df_all["Date"].unique(), reverse=True)
+            "Select Date",
+            sorted(df_today["Date"].unique(), reverse=True)
         )
 
-        down_df = df_all[df_all["Date"] == date_sel]
+        down_df = df_today[df_today["Date"] == date_sel]
 
         excel = BytesIO()
         down_df.to_excel(excel, index=False)
@@ -219,7 +214,7 @@ else:
 
         for name in filtered:
 
-            c1, c2, c3 = st.columns([3, 2, 2])
+            c1, c2, c3, c4 = st.columns([3, 2, 2, 2])
 
             with c1:
                 st.write(name)
@@ -228,6 +223,12 @@ else:
             status = "Present" if present else "Absent"
 
             with c3:
+                if status == "Present":
+                    st.markdown("🟢 **Present**")
+                else:
+                    st.markdown("🔴 **Absent**")
+
+            with c4:
                 banana = st.number_input(
                     "Banana",
                     min_value=0,
@@ -235,7 +236,7 @@ else:
                     key=f"b_{name}"
                 )
 
-            # 🔥 AUTO SAVE
+            # AUTO SAVE
             upsert_attendance(
                 today,
                 time_now,
