@@ -7,50 +7,22 @@ import requests
 from google.oauth2.service_account import Credentials
 from io import BytesIO
 
-# ================= PASSWORDS =================
+# =====================================================
+# BASIC CONFIG
+# =====================================================
 ADMIN_PASS = "tushar07_"
 PAPA_PASS = "lalitnemade"
 
-# ================= SETTINGS =================
 SHEET_NAME = "DadBusinessAttendance"
 ATTENDANCE_SHEET = "Attendance"
-LOGIN_SHEET = "Login_Log"
 WORKERS_SHEET = "Workers"
+LOGIN_SHEET = "Login_Log"
 
 india = pytz.timezone("Asia/Kolkata")
 
-# ================= ALL OLD NAMES =================
-OLD_NAMES = [
-    "पंडितबाबा","हिरामणदेव","विमलबाई","राधे","संजय वांझरे","अजय महाजन",
-    "नांदेड आई","राधाबाई","राधेश्याम","पप्पू भानू","नवीन","भाऊराव",
-    "समर्थ","ईश्वरराव","गायत्री पखाले","काडोदे","निखिल डोंगरे","गिरी",
-    "सुनील सावळे","सुनील घाडगे","मोरे","कोकणे","मोतीलाल मढव",
-    "राजू पिस्तको","अक्कल","मनोहर","बालासाहेब","अर्जुन",
-    "विष्णू पाटील","सुनील लोणारे","केदारनाथ","माळे साई",
-    "कृष्णा केशव","सोमनाथ","गोपाल सोनार","कुमुद आराख","केशवकर",
-    "सुनील वाणी","मोहन","अरुण","चंदन","दादा","विजयाबाई","मला",
-    "गोपाल बोंगावी","संतोष पवार","केलासन पवार","अर्पिता जंगरे",
-    "फुले","पल्लवी ताई","राजू कोंढे","आशिष","ईश्वरनाथ शिंदे",
-    "हिराबाई","मुकेश जोशी","साईसिद्धी","समर्थराव","रामदास पाटील",
-    "पप्पू शिंदे","के. के. वाघ","खलील शेख","अशोक","सुनील",
-    "सुषमा गुप्ता",
-    "आरिफ बागवान","चिंताबाई","पप्पू डिंगराव","सागर काळे","गोरख केदार",
-    "सरपंच","संदीप कोरे","कमलबाई","डोंगरसिंग","बालूबा",
-    "भिंगाजी पप्पा","महादेव","अनिता देवकर","हिराबाई नाथराव",
-    "लक्ष्मीनारायण","गायकवाड","रेश्मा माई","आयुब खानबी","जिलेटा",
-    "अजय कपलेश्वर","शिला जाधव","आशा महाजन","सागर त्रिवेदी",
-    "कुशारे","महाले","उज्वला गवळे","हनुमंत","गोविंद मोरे",
-    "शंकर लोखंडे","योगेश काकडी","गणेश सावळपूर","विठ्ठलाधवारे",
-    "मेघा ताटी","ज्ञानेश्वर","मधु येवाले","अनिक तायडे","सविता काशिद",
-    "लिलाबाई","शंकराऊ","बकुलाबाई माने","विजाबाई","सुनिलराम कदम",
-    "सुदाम यादव","राकेश कांबळे","विनायक कोरे","यशवंत राठोड",
-    "गंगाधर माळी","पालवाडी","काळे","वालाजी लांडे","अशोक कुंभार",
-    "श्यामर गामा","संजय पाटील","गितुनी तांबोळी","गोपाल माने",
-    "राजू शेटे","शंकरदास","वसंत चव्हाण","योगेश पवार",
-    "जलेलकर","अशोक गवळा","देवेंद्र"
-]
-
-# ================= TRANSLITERATION =================
+# =====================================================
+# TRANSLITERATION
+# =====================================================
 def eng_to_marathi(text):
     try:
         url = "https://inputtools.google.com/request"
@@ -63,7 +35,9 @@ def eng_to_marathi(text):
     except:
         return text
 
-# ================= GOOGLE AUTH =================
+# =====================================================
+# GOOGLE AUTH
+# =====================================================
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
@@ -76,55 +50,33 @@ creds = Credentials.from_service_account_info(
 client = gspread.authorize(creds)
 book = client.open(SHEET_NAME)
 
-def get_or_create(title, headers):
+def get_or_create(sheet, headers):
     try:
-        ws = book.worksheet(title)
+        ws = book.worksheet(sheet)
     except:
-        ws = book.add_worksheet(title=title, rows="6000", cols="10")
+        ws = book.add_worksheet(sheet, rows="5000", cols="10")
         ws.append_row(headers)
     return ws
 
 attendance_ws = get_or_create(
     ATTENDANCE_SHEET,
-    ["Date", "Time", "Name", "Status", "Banana", "Deleted"]
+    ["Date","Time","Name","Status","Banana","Deleted"]
 )
 
-login_ws = get_or_create(
-    LOGIN_SHEET,
-    ["Date", "Time", "User"]
-)
+workers_ws = get_or_create(WORKERS_SHEET, ["Name"])
+login_ws = get_or_create(LOGIN_SHEET, ["Date","Time","User"])
 
-workers_ws = get_or_create(
-    WORKERS_SHEET,
-    ["Name"]
-)
-
-# ================= HELPERS =================
+# =====================================================
+# HELPERS
+# =====================================================
 def get_workers():
     df = pd.DataFrame(workers_ws.get_all_records())
     if df.empty:
         return []
-    return df["Name"].dropna().tolist()
-
-def autofill_workers():
-    existing = workers_ws.get_all_values()
-    existing_names = [r[0] for r in existing[1:]]
-
-    rows_to_add = []
-
-    for n in OLD_NAMES:
-        if n not in existing_names:
-            rows_to_add.append([n])
-
-    if rows_to_add:
-        workers_ws.append_rows(rows_to_add)
-
-    return len(rows_to_add)
-
+    return sorted(df["Name"].dropna().tolist())
 
 def upsert_attendance(date, time, name, status, banana):
     rows = attendance_ws.get_all_values()
-
     for i in range(1, len(rows)):
         if rows[i][0] == date and rows[i][2] == name:
             attendance_ws.update(
@@ -132,17 +84,21 @@ def upsert_attendance(date, time, name, status, banana):
                 [[date, time, name, status, banana, "NO"]]
             )
             return
-
     attendance_ws.append_row([date, time, name, status, banana, "NO"])
 
-# ================= SESSION =================
+# =====================================================
+# SESSION
+# =====================================================
 if "role" not in st.session_state:
     st.session_state.role = None
 
-# ================= LOGIN =================
+# =====================================================
+# LOGIN PAGE
+# =====================================================
 if st.session_state.role is None:
 
     st.title("🔐 Login")
+
     password = st.text_input("Enter password", type="password")
 
     if st.button("Login"):
@@ -159,11 +115,18 @@ if st.session_state.role is None:
             st.session_state.role = "papa"
             login_ws.append_row([d, t, "papa"])
             st.rerun()
+
         else:
             st.error("Wrong password")
 
-# ================= DASHBOARD =================
+# =====================================================
+# DASHBOARD
+# =====================================================
 else:
+
+    now = datetime.now(india)
+    today = now.strftime("%d-%m-%Y")
+    time_now = now.strftime("%I:%M %p")
 
     st.sidebar.success(f"Logged in as: {st.session_state.role}")
 
@@ -171,31 +134,76 @@ else:
         st.session_state.role = None
         st.rerun()
 
-    now = datetime.now(india)
-    today = now.strftime("%d-%m-%Y")
-    time_now = now.strftime("%I:%M %p")
+    # =================================================
+    # SIDEBAR DOWNLOAD (PAPA + ADMIN)
+    # =================================================
+    st.sidebar.markdown("## 📥 Download Attendance")
 
-    # ===== AUTO FILL BUTTON =====
+    df_all = pd.DataFrame(attendance_ws.get_all_records())
+
+    if not df_all.empty:
+        date_sel = st.sidebar.selectbox(
+            "Select date",
+            sorted(df_all["Date"].unique(), reverse=True)
+        )
+
+        down_df = df_all[df_all["Date"] == date_sel]
+
+        excel = BytesIO()
+        down_df.to_excel(excel, index=False)
+
+        st.sidebar.download_button(
+            "⬇ Download Excel",
+            data=excel.getvalue(),
+            file_name=f"{date_sel}_attendance.xlsx"
+        )
+
+    # =================================================
+    # ADMIN PANEL (RIGHT SIDE)
+    # =================================================
     if st.session_state.role == "admin":
 
-        st.warning("⚠️ One-time setup")
+        st.sidebar.markdown("## 👑 Admin Panel")
 
-        if st.button("🚀 Auto Fill All Workers"):
-            count = autofill_workers()
-            st.success(f"✅ {count} workers added")
+        # Login logs
+        log_df = pd.DataFrame(login_ws.get_all_records())
+        if not log_df.empty:
+            st.sidebar.markdown("### 🔐 Login History")
+            st.sidebar.dataframe(log_df.tail(10), use_container_width=True)
+
+    # =================================================
+    # ADD WORKER (PAPA + ADMIN)
+    # =================================================
+    st.markdown("### ➕ Add Worker")
+
+    new_worker = st.text_input("Type name (English or Marathi)")
+
+    if st.button("Add Worker"):
+        mar = eng_to_marathi(new_worker.strip())
+
+        existing = workers_ws.get_all_values()
+        names = [r[0] for r in existing[1:]]
+
+        if mar in names:
+            st.warning("Worker already exists")
+        else:
+            workers_ws.append_row([mar])
+            st.success(f"✅ {mar} added")
             st.rerun()
 
-    workers = get_workers()
-
-    # ===== ATTENDANCE =====
+    # =================================================
+    # ATTENDANCE
+    # =================================================
     st.divider()
     st.markdown("### 📝 Today Attendance")
 
+    workers = get_workers()
+
     if not workers:
-        st.info("No workers found. Please autofill first.")
+        st.info("No workers found.")
     else:
 
-        search = st.text_input("Search name")
+        search = st.text_input("Search name (English / Marathi)")
 
         filtered = workers
         if search:
