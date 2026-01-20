@@ -10,8 +10,8 @@ from io import BytesIO
 # =====================================================
 # CONFIG
 # =====================================================
-ADMIN_PASS = "1111"
-PAPA_PASS = "2222"
+ADMIN_PASS = "tushar07_"
+PAPA_PASS = "lalitnemade"
 
 SHEET_NAME = "DadBusinessAttendance"
 ATTENDANCE_SHEET = "Attendance"
