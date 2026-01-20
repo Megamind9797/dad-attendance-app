@@ -7,15 +7,11 @@ import requests
 from google.oauth2.service_account import Credentials
 from io import BytesIO
 
-# ==================================================
-# PASSWORDS
-# ==================================================
+# ================= PASSWORDS =================
 ADMIN_PASS = "tushar07_"
 PAPA_PASS = "lalitnemade"
 
-# ==================================================
-# SETTINGS
-# ==================================================
+# ================= SETTINGS =================
 SHEET_NAME = "DadBusinessAttendance"
 ATTENDANCE_SHEET = "Attendance"
 LOGIN_SHEET = "Login_Log"
@@ -23,9 +19,7 @@ WORKERS_SHEET = "Workers"
 
 india = pytz.timezone("Asia/Kolkata")
 
-# ==================================================
-# OLD NAMES (IMPORT ONLY ONCE)
-# ==================================================
+# ================= ALL OLD NAMES =================
 OLD_NAMES = [
     "पंडितबाबा","हिरामणदेव","विमलबाई","राधे","संजय वांझरे","अजय महाजन",
     "नांदेड आई","राधाबाई","राधेश्याम","पप्पू भानू","नवीन","भाऊराव",
@@ -56,9 +50,7 @@ OLD_NAMES = [
     "जलेलकर","अशोक गवळा","देवेंद्र"
 ]
 
-# ==================================================
-# TRANSLITERATION
-# ==================================================
+# ================= TRANSLITERATION =================
 def eng_to_marathi(text):
     try:
         url = "https://inputtools.google.com/request"
@@ -71,9 +63,7 @@ def eng_to_marathi(text):
     except:
         return text
 
-# ==================================================
-# GOOGLE AUTH
-# ==================================================
+# ================= GOOGLE AUTH =================
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
@@ -109,25 +99,23 @@ workers_ws = get_or_create(
     ["Name"]
 )
 
-# ==================================================
-# HELPERS
-# ==================================================
+# ================= HELPERS =================
 def get_workers():
     df = pd.DataFrame(workers_ws.get_all_records())
     if df.empty:
         return []
     return df["Name"].dropna().tolist()
 
-def auto_import_workers(name_list):
+def autofill_workers():
     existing = workers_ws.get_all_values()
     existing_names = [r[0] for r in existing[1:]]
-    count = 0
 
-    for n in name_list:
+    added = 0
+    for n in OLD_NAMES:
         if n not in existing_names:
             workers_ws.append_row([n])
-            count += 1
-    return count
+            added += 1
+    return added
 
 def upsert_attendance(date, time, name, status, banana):
     rows = attendance_ws.get_all_values()
@@ -142,15 +130,11 @@ def upsert_attendance(date, time, name, status, banana):
 
     attendance_ws.append_row([date, time, name, status, banana, "NO"])
 
-# ==================================================
-# SESSION
-# ==================================================
+# ================= SESSION =================
 if "role" not in st.session_state:
     st.session_state.role = None
 
-# ==================================================
-# LOGIN
-# ==================================================
+# ================= LOGIN =================
 if st.session_state.role is None:
 
     st.title("🔐 Login")
@@ -173,9 +157,7 @@ if st.session_state.role is None:
         else:
             st.error("Wrong password")
 
-# ==================================================
-# DASHBOARD
-# ==================================================
+# ================= DASHBOARD =================
 else:
 
     st.sidebar.success(f"Logged in as: {st.session_state.role}")
@@ -188,101 +170,65 @@ else:
     today = now.strftime("%d-%m-%Y")
     time_now = now.strftime("%I:%M %p")
 
-    workers = get_workers()
-
-    # ========= AUTO IMPORT (ADMIN ONLY) =========
+    # ===== AUTO FILL BUTTON =====
     if st.session_state.role == "admin":
 
-        st.warning("⚠️ One-time setup: Import old worker names")
+        st.warning("⚠️ One-time setup")
 
-        if st.button("🚀 Import Old Names"):
-            added = auto_import_workers(OLD_NAMES)
-            st.success(f"✅ {added} workers imported")
+        if st.button("🚀 Auto Fill All Workers"):
+            count = autofill_workers()
+            st.success(f"✅ {count} workers added")
             st.rerun()
 
-    # ========= SIDEBAR DOWNLOAD =========
-    st.sidebar.markdown("## 📥 Download Data")
+    workers = get_workers()
 
-    all_df = pd.DataFrame(attendance_ws.get_all_records())
-
-    if not all_df.empty:
-        date_dl = st.sidebar.selectbox(
-            "Select Date",
-            sorted(all_df["Date"].unique(), reverse=True)
-        )
-
-        dl_df = all_df[all_df["Date"] == date_dl]
-
-        excel = BytesIO()
-        dl_df.to_excel(excel, index=False)
-
-        st.sidebar.download_button(
-            "⬇ Download Excel",
-            data=excel.getvalue(),
-            file_name=f"{date_dl}_attendance.xlsx"
-        )
-
-    # ========= ADD WORKER =========
-    st.markdown("### ➕ Add New Worker")
-
-    new_worker = st.text_input("Enter worker name (English or Marathi)")
-
-    if st.button("Add Worker"):
-        mar_name = eng_to_marathi(new_worker.strip())
-        existing = workers_ws.get_all_values()
-        names = [r[0] for r in existing[1:]]
-
-        if mar_name in names:
-            st.warning("Worker already exists")
-        else:
-            workers_ws.append_row([mar_name])
-            st.success(f"✅ {mar_name} added")
-            st.rerun()
-
-    # ========= ATTENDANCE =========
+    # ===== ATTENDANCE =====
     st.divider()
     st.markdown("### 📝 Today Attendance")
 
-    search = st.text_input("Search name (English or Marathi)")
+    if not workers:
+        st.info("No workers found. Please autofill first.")
+    else:
 
-    filtered = workers
-    if search:
-        mar = eng_to_marathi(search)
-        filtered = [n for n in workers if mar in n]
+        search = st.text_input("Search name")
 
-    for name in filtered:
+        filtered = workers
+        if search:
+            mar = eng_to_marathi(search)
+            filtered = [n for n in workers if mar in n]
 
-        c1, c2, c3 = st.columns([3,2,2])
+        for name in filtered:
+            c1, c2, c3 = st.columns([3,2,2])
 
-        with c1:
-            st.write(name)
+            with c1:
+                st.write(name)
 
-        with c2:
-            st.checkbox(
-                "Present",
-                key=f"p_{name}",
-                on_change=upsert_attendance,
-                args=(
-                    today,
-                    time_now,
-                    name,
-                    "Present" if st.session_state.get(f"p_{name}") else "Absent",
-                    st.session_state.get(f"b_{name}", 0)
+            with c2:
+                st.checkbox(
+                    "Present",
+                    key=f"p_{name}",
+                    on_change=upsert_attendance,
+                    args=(
+                        today,
+                        time_now,
+                        name,
+                        "Present" if st.session_state.get(f"p_{name}") else "Absent",
+                        st.session_state.get(f"b_{name}", 0)
+                    )
                 )
-            )
 
-        with c3:
-            st.number_input(
-                "Banana",
-                min_value=0,
-                step=1,
-                key=f"b_{name}",
-                on_change=upsert_attendance,
-                args=(
-                    today,
-                    time_now,
-                    name,
-                    "Present" if st.session_state.get(f"p_{name}") else "Absent",
-                    st.session_state.get(f"b_{name}", 0)
+            with c3:
+                st.number_input(
+                    "Banana",
+                    min_value=0,
+                    step=1,
+                    key=f"b_{name}",
+                    on_change=upsert_attendance,
+                    args=(
+                        today,
+                        time_now,
+                        name,
+                        "Present" if st.session_state.get(f"p_{name}") else "Absent",
+                        st.session_state.get(f"b_{name}", 0)
+                    )
                 )
-            )
