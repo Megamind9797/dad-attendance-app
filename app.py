@@ -7,58 +7,25 @@ import requests
 from google.oauth2.service_account import Credentials
 from io import BytesIO
 
-# ================= PASSWORDS =================
-ADMIN_PASS = "tushar07_"
-PAPA_PASS = "lalitnemade"
+# ==================================================
+# PASSWORDS
+# ==================================================
+ADMIN_PASS = "1111"
+PAPA_PASS = "2222"
 
-
-# ================= SETTINGS =================
+# ==================================================
+# SETTINGS
+# ==================================================
 SHEET_NAME = "DadBusinessAttendance"
 ATTENDANCE_SHEET = "Attendance"
 LOGIN_SHEET = "Login_Log"
-
-# 🔤 Master Marathi names
-NAMES = [
-    # 1–32
-    "पंडितबाबा","हिरामणदेव","विमलबाई","राधे","संजय वांझरे","अजय महाजन",
-    "नांदेड आई","राधाबाई","राधेश्याम","पप्पू भानू","नवीन","भाऊराव",
-    "समर्थ","ईश्वरराव","गायत्री पखाले","काडोदे","निखिल डोंगरे","गिरी",
-    "सुनील सावळे","सुनील घाडगे","मोरे","कोकणे","मोतीलाल मढव",
-    "राजू पिस्तको","अक्कल","मनोहर","बालासाहेब","अर्जुन",
-    "विष्णू पाटील","सुनील लोणारे","केदारनाथ","माळे साई",
-
-    # 33–64
-    "कृष्णा केशव","सोमनाथ","गोपाल सोनार","कुमुद आराख","केशवकर",
-    "सुनील वाणी","मोहन","अरुण","चंदन","दादा","विजयाबाई","मला",
-    "गोपाल बोंगावी","संतोष पवार","केलासन पवार","अर्पिता जंगरे",
-    "फुले","पल्लवी ताई","राजू कोंढे","आशिष","ईश्वरनाथ शिंदे",
-    "हिराबाई","मुकेश जोशी","साईसिद्धी","समर्थराव","रामदास पाटील",
-    "पप्पू शिंदे","के. के. वाघ","खलील शेख","अशोक","सुनील",
-    "सुषमा गुप्ता",
-
-    # 65–96
-    "आरिफ बागवान","चिंताबाई","पप्पू डिंगराव","सागर काळे","गोरख केदार",
-    "सरपंच","संदीप कोरे","कमलबाई","डोंगरसिंग","बालूबा",
-    "भिंगाजी पप्पा","महादेव","अनिता देवकर","हिराबाई नाथराव",
-    "लक्ष्मीनारायण","गायकवाड","रेश्मा माई","आयुब खानबी","जिलेटा",
-    "अजय कपलेश्वर","शिला जाधव","आशा महाजन","सागर त्रिवेदी",
-    "कुशारे","महाले","उज्वला गवळे","हनुमंत","गोविंद मोरे",
-    "शंकर लोखंडे","योगेश काकडी","गणेश सावळपूर","विठ्ठलाधवारे",
-
-    # 97–129
-    "मेघा ताटी","ज्ञानेश्वर","मधु येवाले","अनिक तायडे","सविता काशिद",
-    "लिलाबाई","शंकराऊ","बकुलाबाई माने","विजाबाई","सुनिलराम कदम",
-    "सुदाम यादव","राकेश कांबळे","विनायक कोरे","यशवंत राठोड",
-    "गंगाधर माळी","पालवाडी","काळे","वालाजी लांडे","अशोक कुंभार",
-    "श्यामर गामा","संजय पाटील","गितुनी तांबोळी","गोपाल माने",
-    "राजू शेटे","शंकरदास","वसंत चव्हाण","योगेश पवार",
-    "जलेलकर","अशोक गवळा","देवेंद्र"
-]
-
+WORKERS_SHEET = "Workers"
 
 india = pytz.timezone("Asia/Kolkata")
 
-# ================= TRANSLITERATION =================
+# ==================================================
+# TRANSLITERATION
+# ==================================================
 def eng_to_marathi(text):
     try:
         url = "https://inputtools.google.com/request"
@@ -71,7 +38,9 @@ def eng_to_marathi(text):
     except:
         return text
 
-# ================= GOOGLE AUTH =================
+# ==================================================
+# GOOGLE AUTH
+# ==================================================
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
@@ -88,7 +57,7 @@ def get_or_create(title, headers):
     try:
         ws = book.worksheet(title)
     except:
-        ws = book.add_worksheet(title=title, rows="4000", cols="10")
+        ws = book.add_worksheet(title=title, rows="5000", cols="10")
         ws.append_row(headers)
     return ws
 
@@ -102,11 +71,44 @@ login_ws = get_or_create(
     ["Date", "Time", "User"]
 )
 
-# ================= SESSION =================
+workers_ws = get_or_create(
+    WORKERS_SHEET,
+    ["Name"]
+)
+
+# ==================================================
+# HELPERS
+# ==================================================
+def get_workers():
+    df = pd.DataFrame(workers_ws.get_all_records())
+    if df.empty:
+        return []
+    return df["Name"].dropna().tolist()
+
+
+def upsert_attendance(date, time, name, status, banana):
+    rows = attendance_ws.get_all_values()
+
+    for i in range(1, len(rows)):
+        if rows[i][0] == date and rows[i][2] == name:
+            attendance_ws.update(
+                f"A{i+1}:F{i+1}",
+                [[date, time, name, status, banana, "NO"]]
+            )
+            return
+
+    attendance_ws.append_row([date, time, name, status, banana, "NO"])
+
+
+# ==================================================
+# SESSION
+# ==================================================
 if "role" not in st.session_state:
     st.session_state.role = None
 
-# ================= LOGIN =================
+# ==================================================
+# LOGIN
+# ==================================================
 if st.session_state.role is None:
 
     st.title("🔐 Login")
@@ -129,7 +131,9 @@ if st.session_state.role is None:
         else:
             st.error("Wrong password")
 
-# ================= DASHBOARD =================
+# ==================================================
+# DASHBOARD
+# ==================================================
 else:
 
     st.sidebar.success(f"Logged in as: {st.session_state.role}")
@@ -142,127 +146,92 @@ else:
     today = now.strftime("%d-%m-%Y")
     time_now = now.strftime("%I:%M %p")
 
-    st.title("🍌 Daily Attendance System")
-    st.subheader(f"Date: {today}")
+    workers = get_workers()
 
-    # ================= TODAY ATTENDANCE =================
+    # ================= SIDEBAR DOWNLOAD =================
+    st.sidebar.markdown("## 📥 Download Data")
+
+    all_df = pd.DataFrame(attendance_ws.get_all_records())
+
+    if not all_df.empty:
+        date_dl = st.sidebar.selectbox(
+            "Select Date",
+            sorted(all_df["Date"].unique(), reverse=True)
+        )
+
+        dl_df = all_df[all_df["Date"] == date_dl]
+
+        excel = BytesIO()
+        dl_df.to_excel(excel, index=False)
+
+        st.sidebar.download_button(
+            "⬇ Download Excel",
+            data=excel.getvalue(),
+            file_name=f"{date_dl}_attendance.xlsx"
+        )
+
+    # ================= ADD WORKER =================
+    st.markdown("### ➕ Add New Worker")
+
+    new_worker = st.text_input("Enter worker name (English or Marathi)")
+
+    if st.button("Add Worker"):
+        mar_name = eng_to_marathi(new_worker.strip())
+        existing = workers_ws.get_all_values()
+
+        names = [r[0] for r in existing[1:]]
+
+        if mar_name in names:
+            st.warning("Worker already exists")
+        else:
+            workers_ws.append_row([mar_name])
+            st.success(f"✅ {mar_name} added")
+            st.rerun()
+
+    # ================= ATTENDANCE =================
+    st.divider()
     st.markdown("### 📝 Today Attendance")
 
-    search_input = st.text_input(
-        "Search name (English or Marathi)",
-        placeholder="Example: ram, patil"
-    )
+    search = st.text_input("Search name (English or Marathi)")
 
-    filtered_names = NAMES
+    filtered = workers
+    if search:
+        mar = eng_to_marathi(search)
+        filtered = [n for n in workers if mar in n]
 
-    if search_input:
-        mar = eng_to_marathi(search_input)
-        filtered_names = [n for n in NAMES if mar in n]
+    for name in filtered:
 
-    existing = pd.DataFrame(attendance_ws.get_all_records())
-
-    if not existing.empty and "Deleted" not in existing.columns:
-        existing["Deleted"] = "NO"
-
-    today_done = []
-    if not existing.empty:
-        today_done = existing[
-            (existing["Date"] == today) &
-            (existing["Deleted"] == "NO")
-        ]["Name"].tolist()
-
-    data = []
-
-    for name in filtered_names:
         c1, c2, c3 = st.columns([3,2,2])
 
         with c1:
             st.write(name)
 
         with c2:
-            present = st.checkbox("Present", key=name)
+            st.checkbox(
+                "Present",
+                key=f"p_{name}",
+                on_change=upsert_attendance,
+                args=(
+                    today,
+                    time_now,
+                    name,
+                    "Present" if st.session_state.get(f"p_{name}") else "Absent",
+                    st.session_state.get(f"b_{name}", 0)
+                )
+            )
 
         with c3:
-            banana = st.number_input("Banana", 0, step=1, key=name+"_b")
-
-        status = "Present" if present else "Absent"
-
-        if name not in today_done:
-            data.append([today, time_now, name, status, banana, "NO"])
-
-    if st.button("💾 Save Today Data"):
-        for row in data:
-            attendance_ws.append_row(row)
-        st.success("✅ Saved (duplicate auto blocked)")
-
-    # ================= HISTORY =================
-    st.divider()
-    st.subheader("📊 Attendance History")
-
-    df = pd.DataFrame(attendance_ws.get_all_records())
-
-    if not df.empty:
-
-        if "Deleted" not in df.columns:
-            df["Deleted"] = "NO"
-
-        df = df[df["Deleted"] == "NO"]
-
-        search = st.text_input("Search history name")
-
-        if search:
-            mar = eng_to_marathi(search)
-            df = df[df["Name"].str.contains(mar, case=False)]
-
-        date_filter = st.selectbox(
-            "Select Date",
-            ["All"] + sorted(df["Date"].unique(), reverse=True)
-        )
-
-        if date_filter != "All":
-            df = df[df["Date"] == date_filter]
-            st.info(f"🍌 Total Banana: {df['Banana'].sum()}")
-
-        if st.session_state.role == "papa":
-            df_show = df[["Date", "Name", "Status", "Banana"]]
-        else:
-            df_show = df[["Date", "Time", "Name", "Status", "Banana"]]
-
-        def color(v):
-            if v == "Present":
-                return "background-color:#90EE90"
-            if v == "Absent":
-                return "background-color:#FF9999"
-            return ""
-
-        st.dataframe(
-            df_show.style.applymap(color, subset=["Status"]),
-            use_container_width=True
-        )
-
-        out = BytesIO()
-        df_show.to_excel(out, index=False)
-
-        st.download_button(
-            "⬇ Download Excel",
-            data=out.getvalue(),
-            file_name="attendance.xlsx"
-        )
-
-    # ================= ADMIN DELETE =================
-    if st.session_state.role == "admin" and not df.empty:
-
-        st.divider()
-        st.subheader("🗑️ Admin Delete")
-
-        del_name = st.selectbox("Select Name", df["Name"].unique())
-        del_date = st.selectbox("Select Date", df["Date"].unique())
-
-        if st.button("Delete selected record"):
-            all_rows = attendance_ws.get_all_values()
-
-            for i in range(1, len(all_rows)):
-                if all_rows[i][0] == del_date and all_rows[i][2] == del_name:
-                    attendance_ws.update_cell(i+1, 6, "YES")
-
-            st.success("Record deleted safely ✅")
+            st.number_input(
+                "Banana",
+                min_value=0,
+                step=1,
+                key=f"b_{name}",
+                on_change=upsert_attendance,
+                args=(
+                    today,
+                    time_now,
+                    name,
+                    "Present" if st.session_state.get(f"p_{name}") else "Absent",
+                    st.session_state.get(f"b_{name}", 0)
+                )
+            )
