@@ -8,7 +8,7 @@ from google.oauth2.service_account import Credentials
 from io import BytesIO
 
 # =====================================================
-# BASIC CONFIG
+# CONFIG
 # =====================================================
 ADMIN_PASS = "tushar07_"
 PAPA_PASS = "lalitnemade"
@@ -60,11 +60,11 @@ def get_or_create(sheet, headers):
 
 attendance_ws = get_or_create(
     ATTENDANCE_SHEET,
-    ["Date","Time","Name","Status","Banana","Deleted"]
+    ["Date", "Time", "Name", "Status", "Banana", "Deleted"]
 )
 
 workers_ws = get_or_create(WORKERS_SHEET, ["Name"])
-login_ws = get_or_create(LOGIN_SHEET, ["Date","Time","User"])
+login_ws = get_or_create(LOGIN_SHEET, ["Date", "Time", "User"])
 
 # =====================================================
 # HELPERS
@@ -93,12 +93,11 @@ if "role" not in st.session_state:
     st.session_state.role = None
 
 # =====================================================
-# LOGIN PAGE
+# LOGIN
 # =====================================================
 if st.session_state.role is None:
 
     st.title("🔐 Login")
-
     password = st.text_input("Enter password", type="password")
 
     if st.button("Login"):
@@ -115,7 +114,6 @@ if st.session_state.role is None:
             st.session_state.role = "papa"
             login_ws.append_row([d, t, "papa"])
             st.rerun()
-
         else:
             st.error("Wrong password")
 
@@ -135,7 +133,21 @@ else:
         st.rerun()
 
     # =================================================
-    # SIDEBAR DOWNLOAD (PAPA + ADMIN)
+    # TODAY TOTAL BANANA (SIDEBAR)
+    # =================================================
+    df_today = pd.DataFrame(attendance_ws.get_all_records())
+
+    today_total = 0
+    if not df_today.empty:
+        df_today = df_today[df_today["Date"] == today]
+        if not df_today.empty:
+            today_total = df_today["Banana"].sum()
+
+    st.sidebar.markdown("## 🍌 Today Total")
+    st.sidebar.success(f"Total Banana: {today_total}")
+
+    # =================================================
+    # DOWNLOAD (SIDEBAR)
     # =================================================
     st.sidebar.markdown("## 📥 Download Attendance")
 
@@ -159,28 +171,23 @@ else:
         )
 
     # =================================================
-    # ADMIN PANEL (RIGHT SIDE)
+    # ADMIN LOGIN LOGS
     # =================================================
     if st.session_state.role == "admin":
-
-        st.sidebar.markdown("## 👑 Admin Panel")
-
-        # Login logs
+        st.sidebar.markdown("## 🔐 Login Logs")
         log_df = pd.DataFrame(login_ws.get_all_records())
         if not log_df.empty:
-            st.sidebar.markdown("### 🔐 Login History")
             st.sidebar.dataframe(log_df.tail(10), use_container_width=True)
 
     # =================================================
-    # ADD WORKER (PAPA + ADMIN)
+    # ADD WORKER
     # =================================================
     st.markdown("### ➕ Add Worker")
 
-    new_worker = st.text_input("Type name (English or Marathi)")
+    new_worker = st.text_input("Enter name (English or Marathi)")
 
     if st.button("Add Worker"):
         mar = eng_to_marathi(new_worker.strip())
-
         existing = workers_ws.get_all_values()
         names = [r[0] for r in existing[1:]]
 
@@ -211,37 +218,28 @@ else:
             filtered = [n for n in workers if mar in n]
 
         for name in filtered:
-            c1, c2, c3 = st.columns([3,2,2])
+
+            c1, c2, c3 = st.columns([3, 2, 2])
 
             with c1:
                 st.write(name)
 
-            with c2:
-                st.checkbox(
-                    "Present",
-                    key=f"p_{name}",
-                    on_change=upsert_attendance,
-                    args=(
-                        today,
-                        time_now,
-                        name,
-                        "Present" if st.session_state.get(f"p_{name}") else "Absent",
-                        st.session_state.get(f"b_{name}", 0)
-                    )
-                )
+            present = st.checkbox("Present", key=f"p_{name}")
+            status = "Present" if present else "Absent"
 
             with c3:
-                st.number_input(
+                banana = st.number_input(
                     "Banana",
                     min_value=0,
                     step=1,
-                    key=f"b_{name}",
-                    on_change=upsert_attendance,
-                    args=(
-                        today,
-                        time_now,
-                        name,
-                        "Present" if st.session_state.get(f"p_{name}") else "Absent",
-                        st.session_state.get(f"b_{name}", 0)
-                    )
+                    key=f"b_{name}"
                 )
+
+            # 🔥 AUTO SAVE
+            upsert_attendance(
+                today,
+                time_now,
+                name,
+                status,
+                banana
+            )
