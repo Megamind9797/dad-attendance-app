@@ -7,7 +7,7 @@ import requests
 from google.oauth2.service_account import Credentials
 from io import BytesIO
 
-# ================= CONFIG =================
+# ================== CONFIG ==================
 ADMIN_PASS = "tushar07_"
 PAPA_PASS = "lalitnemade"
 
@@ -18,7 +18,7 @@ LOGIN_SHEET = "Login_Log"
 
 india = pytz.timezone("Asia/Kolkata")
 
-# ================= TRANSLITERATION =================
+# ================== TRANSLITERATION ==================
 def eng_to_marathi(text):
     try:
         url = "https://inputtools.google.com/request"
@@ -31,7 +31,7 @@ def eng_to_marathi(text):
     except:
         return text
 
-# ================= GOOGLE AUTH =================
+# ================== GOOGLE AUTH ==================
 scope = [
     "https://www.googleapis.com/auth/spreadsheets",
     "https://www.googleapis.com/auth/drive"
@@ -53,7 +53,7 @@ def get_or_create(sheet, headers):
     try:
         ws = book.worksheet(sheet)
     except:
-        ws = book.add_worksheet(sheet, rows="5000", cols="10")
+        ws = book.add_worksheet(title=sheet, rows="5000", cols="10")
         ws.append_row(headers)
     return ws
 
@@ -61,18 +61,17 @@ attendance_ws = get_or_create(
     ATTENDANCE_SHEET,
     ["Date","Time","Name","Status","Banana","Deleted"]
 )
-
 workers_ws = get_or_create(WORKERS_SHEET, ["Name"])
 login_ws = get_or_create(LOGIN_SHEET, ["Date","Time","User"])
 
-# ================= SESSION =================
+# ================== SESSION ==================
 if "role" not in st.session_state:
     st.session_state.role = None
 
-if "attendance_today" not in st.session_state:
-    st.session_state.attendance_today = {}
+if "today_data" not in st.session_state:
+    st.session_state.today_data = {}
 
-# ================= LOGIN =================
+# ================== LOGIN ==================
 if st.session_state.role is None:
 
     st.title("🔐 Login")
@@ -95,7 +94,7 @@ if st.session_state.role is None:
         else:
             st.error("Wrong password")
 
-# ================= DASHBOARD =================
+# ================== DASHBOARD ==================
 else:
 
     now = datetime.now(india)
@@ -108,11 +107,58 @@ else:
         st.session_state.role = None
         st.rerun()
 
-    # ================= LOAD WORKERS =================
-    df_workers = pd.DataFrame(workers_ws.get_all_records())
-    workers = df_workers["Name"].tolist() if not df_workers.empty else []
+    # ================== LOAD WORKERS ==================
+    workers_df = pd.DataFrame(workers_ws.get_all_records())
+    workers = workers_df["Name"].tolist() if not workers_df.empty else []
 
-    # ================= ATTENDANCE UI =================
+    # ================== TODAY TOTAL ==================
+    total_banana = sum(
+        v.get("banana", 0) for v in st.session_state.today_data.values()
+    )
+
+    st.sidebar.markdown("## 🍌 Today Total")
+    st.sidebar.success(str(total_banana))
+
+    # ================== DOWNLOAD ==================
+    df_att = pd.DataFrame(attendance_ws.get_all_records())
+    if not df_att.empty:
+        date_sel = st.sidebar.selectbox(
+            "Download date",
+            sorted(df_att["Date"].unique(), reverse=True)
+        )
+
+        excel = BytesIO()
+        df_att[df_att["Date"] == date_sel].to_excel(excel, index=False)
+
+        st.sidebar.download_button(
+            "⬇ Download Excel",
+            data=excel.getvalue(),
+            file_name=f"{date_sel}.xlsx"
+        )
+
+    # ================== ADMIN LOGS ==================
+    if st.session_state.role == "admin":
+        st.sidebar.markdown("## 🔐 Login Logs")
+        logs_df = pd.DataFrame(login_ws.get_all_records())
+        if not logs_df.empty:
+            st.sidebar.dataframe(logs_df.tail(10), use_container_width=True)
+
+    # ================== ADD WORKER ==================
+    st.markdown("### ➕ Add Worker")
+
+    new_worker = st.text_input("Type name (English or Marathi)")
+
+    if st.button("Add Worker"):
+        mar = eng_to_marathi(new_worker.strip())
+        if mar not in workers:
+            workers_ws.append_row([mar])
+            st.success(f"✅ {mar} added")
+            st.rerun()
+        else:
+            st.warning("Worker already exists")
+
+    # ================== ATTENDANCE ==================
+    st.divider()
     st.markdown("### 📝 Today Attendance")
 
     search = st.text_input("Search name")
@@ -123,8 +169,8 @@ else:
 
     for name in workers:
 
-        if name not in st.session_state.attendance_today:
-            st.session_state.attendance_today[name] = {
+        if name not in st.session_state.today_data:
+            st.session_state.today_data[name] = {
                 "status": "Absent",
                 "banana": 0
             }
@@ -138,11 +184,11 @@ else:
             present = st.checkbox(
                 "",
                 key=f"p_{name}",
-                value=st.session_state.attendance_today[name]["status"] == "Present"
+                value=st.session_state.today_data[name]["status"] == "Present"
             )
 
         status = "Present" if present else "Absent"
-        st.session_state.attendance_today[name]["status"] = status
+        st.session_state.today_data[name]["status"] = status
 
         with col3:
             st.markdown("🟢 Present" if present else "🔴 Absent")
@@ -153,16 +199,16 @@ else:
                 min_value=0,
                 step=1,
                 key=f"b_{name}",
-                value=st.session_state.attendance_today[name]["banana"]
+                value=st.session_state.today_data[name]["banana"]
             )
 
-        st.session_state.attendance_today[name]["banana"] = banana
+        st.session_state.today_data[name]["banana"] = banana
 
-    # ================= SAVE BUTTON =================
+    # ================== SAVE ==================
     st.divider()
 
     if st.button("💾 Save Attendance"):
-        for name, data in st.session_state.attendance_today.items():
+        for name, data in st.session_state.today_data.items():
             attendance_ws.append_row([
                 today,
                 time_now,
