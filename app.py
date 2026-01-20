@@ -48,13 +48,19 @@ creds = Credentials.from_service_account_info(
 )
 
 client = gspread.authorize(creds)
-book = client.open(SHEET_NAME)
+
+# 🔥 SAFE OPEN (avoids crash)
+try:
+    book = client.open(SHEET_NAME)
+except:
+    st.error("❌ Google Sheet not shared with service account.")
+    st.stop()
 
 def get_or_create(sheet, headers):
     try:
         ws = book.worksheet(sheet)
     except:
-        ws = book.add_worksheet(sheet, rows="5000", cols="10")
+        ws = book.add_worksheet(title=sheet, rows="5000", cols="10")
         ws.append_row(headers)
     return ws
 
@@ -98,6 +104,7 @@ if "role" not in st.session_state:
 if st.session_state.role is None:
 
     st.title("🔐 Login")
+
     password = st.text_input("Enter password", type="password")
 
     if st.button("Login"):
@@ -114,6 +121,7 @@ if st.session_state.role is None:
             st.session_state.role = "papa"
             login_ws.append_row([d, t, "papa"])
             st.rerun()
+
         else:
             st.error("Wrong password")
 
@@ -132,30 +140,25 @@ else:
         st.session_state.role = None
         st.rerun()
 
-    # =================================================
-    # TODAY TOTAL BANANA
-    # =================================================
-    df_today = pd.DataFrame(attendance_ws.get_all_records())
+    # ---------------- TODAY TOTAL ----------------
+    df_all = pd.DataFrame(attendance_ws.get_all_records())
     today_total = 0
-    if not df_today.empty:
-        today_total = df_today[df_today["Date"] == today]["Banana"].sum()
+    if not df_all.empty:
+        today_total = df_all[df_all["Date"] == today]["Banana"].sum()
 
     st.sidebar.markdown("## 🍌 Today Total")
-    st.sidebar.success(f"{today_total}")
+    st.sidebar.success(str(today_total))
 
-    # =================================================
-    # DOWNLOAD
-    # =================================================
-    st.sidebar.markdown("## 📥 Download Attendance")
+    # ---------------- DOWNLOAD ----------------
+    st.sidebar.markdown("## 📥 Download")
 
-    if not df_today.empty:
+    if not df_all.empty:
         date_sel = st.sidebar.selectbox(
-            "Select Date",
-            sorted(df_today["Date"].unique(), reverse=True)
+            "Select date",
+            sorted(df_all["Date"].unique(), reverse=True)
         )
 
-        down_df = df_today[df_today["Date"] == date_sel]
-
+        down_df = df_all[df_all["Date"] == date_sel]
         excel = BytesIO()
         down_df.to_excel(excel, index=False)
 
@@ -165,18 +168,14 @@ else:
             file_name=f"{date_sel}_attendance.xlsx"
         )
 
-    # =================================================
-    # ADMIN LOGIN LOGS
-    # =================================================
+    # ---------------- ADMIN LOGS ----------------
     if st.session_state.role == "admin":
         st.sidebar.markdown("## 🔐 Login Logs")
         log_df = pd.DataFrame(login_ws.get_all_records())
         if not log_df.empty:
-            st.sidebar.dataframe(log_df.tail(10), use_container_width=True)
+            st.sidebar.dataframe(log_df.tail(10))
 
-    # =================================================
-    # ADD WORKER
-    # =================================================
+    # ---------------- ADD WORKER ----------------
     st.markdown("### ➕ Add Worker")
 
     new_worker = st.text_input("Enter name (English or Marathi)")
@@ -193,54 +192,39 @@ else:
             st.success(f"✅ {mar} added")
             st.rerun()
 
-    # =================================================
-    # ATTENDANCE
-    # =================================================
+    # ---------------- ATTENDANCE ----------------
     st.divider()
     st.markdown("### 📝 Today Attendance")
 
     workers = get_workers()
 
-    if not workers:
-        st.info("No workers found.")
-    else:
+    search = st.text_input("Search name")
 
-        search = st.text_input("Search name (English / Marathi)")
+    if search:
+        mar = eng_to_marathi(search)
+        workers = [n for n in workers if mar in n]
 
-        filtered = workers
-        if search:
-            mar = eng_to_marathi(search)
-            filtered = [n for n in workers if mar in n]
+    for name in workers:
 
-        for name in filtered:
+        col1, col2, col3, col4 = st.columns([4, 2, 2, 2])
 
-            c1, c2, c3, c4 = st.columns([3, 2, 2, 2])
+        with col1:
+            st.write(name)
 
-            with c1:
-                st.write(name)
+        with col2:
+            present = st.checkbox("", key=f"p_{name}")
 
-            present = st.checkbox("Present", key=f"p_{name}")
-            status = "Present" if present else "Absent"
+        status = "Present" if present else "Absent"
 
-            with c3:
-                if status == "Present":
-                    st.markdown("🟢 **Present**")
-                else:
-                    st.markdown("🔴 **Absent**")
+        with col3:
+            st.markdown("🟢 Present" if present else "🔴 Absent")
 
-            with c4:
-                banana = st.number_input(
-                    "Banana",
-                    min_value=0,
-                    step=1,
-                    key=f"b_{name}"
-                )
-
-            # AUTO SAVE
-            upsert_attendance(
-                today,
-                time_now,
-                name,
-                status,
-                banana
+        with col4:
+            banana = st.number_input(
+                "",
+                min_value=0,
+                step=1,
+                key=f"b_{name}"
             )
+
+        upsert_attendance(today, time_now, name, status, banana)
