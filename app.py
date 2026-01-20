@@ -10,8 +10,8 @@ from io import BytesIO
 # =====================================================
 # CONFIG
 # =====================================================
-ADMIN_PASS = "tushar07_"
-PAPA_PASS = "lalitnemade"
+ADMIN_PASS = "1111"
+PAPA_PASS = "2222"
 
 SHEET_NAME = "DadBusinessAttendance"
 ATTENDANCE_SHEET = "Attendance"
@@ -82,15 +82,21 @@ def get_workers():
     return sorted(df["Name"].dropna().tolist())
 
 def upsert_attendance(date, time, name, status, banana):
-    rows = attendance_ws.get_all_values()
-    for i in range(1, len(rows)):
-        if rows[i][0] == date and rows[i][2] == name:
-            attendance_ws.update(
-                f"A{i+1}:F{i+1}",
-                [[date, time, name, status, banana, "NO"]]
-            )
-            return
+    key = f"{date}_{name}"
+
+    if "last_saved" not in st.session_state:
+        st.session_state.last_saved = {}
+
+    prev = st.session_state.last_saved.get(key)
+
+    current = (status, banana)
+
+    if prev == current:
+        return  # ❌ no API call
+
     attendance_ws.append_row([date, time, name, status, banana, "NO"])
+    st.session_state.last_saved[key] = current
+
 
 # =====================================================
 # SESSION
