@@ -95,6 +95,17 @@ if st.session_state.role is None:
             st.error("Wrong password")
 
 # ================== DASHBOARD ==================
+
+# ================== ADMIN RESET ==================
+if st.session_state.role == "admin":
+
+    st.sidebar.markdown("## 🔄 Admin Control")
+
+    if st.sidebar.button("🔄 Refresh Today"):
+        st.session_state.today_data = {}
+        st.success("✅ Today attendance reset")
+        st.rerun()
+
 else:
 
     now = datetime.now(india)
