@@ -156,7 +156,7 @@ else:
             st.sidebar.dataframe(logs_df.tail(10), use_container_width=True)
 
     # ---------------- ADD WORKER ----------------
-    st.subheader("➕ Add Worker")
+    st.subheader("➕ Add Customer")
 
     new_worker = st.text_input("Name (English or Marathi)")
 
