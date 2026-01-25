@@ -104,7 +104,7 @@ if st.session_state.role is None:
 # =====================================================
 else:
 
-    st.title("📋 Attendance Dashboard")
+    st.title("📋 जय भोले फ्रूट्स")
 
     now = datetime.now(india)
     today = now.strftime("%d-%m-%Y")
