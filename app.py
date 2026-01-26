@@ -253,14 +253,23 @@ else:
     # ---------------- SAVE ----------------
     st.divider()
 
-    if st.button("💾 Save Attendance", key="save_attendance"):
-        for name, data in st.session_state.today_data.items():
+   if st.button("💾 Save Attendance", key="save_attendance"):
+
+    saved_count = 0
+
+    for name, data in st.session_state.today_data.items():
+
+        if data["status"] == "Present":   # ⭐ MAIN CONDITION
+
             attendance_ws.append_row([
                 today,
                 time_now,
                 name,
-                data["status"],
+                "Present",
                 data["banana"],
                 "NO"
             ])
-        st.success("✅ Attendance saved successfully")
+
+            saved_count += 1
+
+    st.success(f"✅ {saved_count} present customers saved")
