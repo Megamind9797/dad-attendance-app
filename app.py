@@ -182,42 +182,75 @@ else:
         mar = eng_to_marathi(search)
         workers = [n for n in workers if mar in n]
 
-    for name in workers:
+    st.markdown("""
+<style>
+.box {
+    border: 1px solid #ddd;
+    border-radius: 10px;
+    padding: 10px;
+    margin-bottom: 10px;
+}
+.head {
+    font-weight: bold;
+    text-align: center;
+}
+.center {
+    text-align: center;
+}
+</style>
+""", unsafe_allow_html=True)
 
-        if name not in st.session_state.today_data:
-            st.session_state.today_data[name] = {
-                "status": "Absent",
-                "banana": 0
-            }
+for name in workers:
 
-        col1, col2, col3, col4 = st.columns([4,2,2,2])
+    if name not in st.session_state.today_data:
+        st.session_state.today_data[name] = {
+            "status": "Absent",
+            "banana": 0
+        }
 
-        with col1:
-            st.write(name)
+    st.markdown("<div class='box'>", unsafe_allow_html=True)
 
-        with col2:
-            present = st.checkbox(
-                "",
-                key=f"p_{name}",
-                value=st.session_state.today_data[name]["status"] == "Present"
-            )
+    col1, col2, col3, col4 = st.columns([4,2,2,2])
 
-        status = "Present" if present else "Absent"
-        st.session_state.today_data[name]["status"] = status
+    # -------- NAME --------
+    with col1:
+        st.markdown("<div class='head'>Name</div>", unsafe_allow_html=True)
+        st.markdown(f"<div class='center'>{name}</div>", unsafe_allow_html=True)
 
-        with col3:
-            st.markdown("🟢 Present" if present else "🔴 Absent")
+    # -------- TICK --------
+    with col2:
+        st.markdown("<div class='head'>Tick</div>", unsafe_allow_html=True)
+        present = st.checkbox(
+            "",
+            key=f"p_{name}",
+            value=st.session_state.today_data[name]["status"] == "Present"
+        )
 
-        with col4:
-            banana = st.number_input(
-                "",
-                min_value=0,
-                step=1,
-                key=f"b_{name}",
-                value=st.session_state.today_data[name]["banana"]
-            )
+    status = "Present" if present else "Absent"
+    st.session_state.today_data[name]["status"] = status
 
-        st.session_state.today_data[name]["banana"] = banana
+    # -------- STATUS --------
+    with col3:
+        st.markdown("<div class='head'>Status</div>", unsafe_allow_html=True)
+        st.markdown(
+            f"<div class='center'>{'🟢 Present' if present else '🔴 Absent'}</div>",
+            unsafe_allow_html=True
+        )
+
+    # -------- BANANA --------
+    with col4:
+        st.markdown("<div class='head'>🍌 Quantity</div>", unsafe_allow_html=True)
+        banana = st.number_input(
+            "",
+            min_value=0,
+            step=1,
+            key=f"b_{name}",
+            value=st.session_state.today_data[name]["banana"]
+        )
+
+    st.session_state.today_data[name]["banana"] = banana
+
+    st.markdown("</div>", unsafe_allow_html=True)
 
     # ---------------- SAVE ----------------
     st.divider()
