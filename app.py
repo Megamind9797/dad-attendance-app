@@ -251,25 +251,26 @@ else:
         st.markdown("</div>", unsafe_allow_html=True)
 
     # ---------------- SAVE ----------------
+       # ---------------- SAVE ----------------
     st.divider()
 
-   if st.button("💾 Save Attendance", key="save_attendance"):
+    if st.button("💾 Save Attendance", key="save_attendance"):
 
-    saved_count = 0
+        saved_count = 0
 
-    for name, data in st.session_state.today_data.items():
+        for name, data in st.session_state.today_data.items():
 
-        if data["status"] == "Present":   # ⭐ MAIN CONDITION
+            if data["status"] == "Present":
 
-            attendance_ws.append_row([
-                today,
-                time_now,
-                name,
-                "Present",
-                data["banana"],
-                "NO"
-            ])
+                attendance_ws.append_row([
+                    today,
+                    time_now,
+                    name,
+                    "Present",
+                    data["banana"],
+                    "NO"
+                ])
 
-            saved_count += 1
+                saved_count += 1
 
-    st.success(f"✅ {saved_count} present customers saved")
+        st.success(f"✅ {saved_count} present customers saved")
