@@ -72,15 +72,14 @@ if "today_data" not in st.session_state:
     st.session_state.today_data = {}
 
 # =====================================================
-# 🔐 LOGIN PAGE (ONLY THIS SHOWS FIRST)
+# 🔐 LOGIN PAGE
 # =====================================================
 if st.session_state.role is None:
 
     st.title("🔐 Login")
-
     password = st.text_input("Enter password", type="password")
 
-    if st.button("Login"):
+    if st.button("Login", key="login_btn"):
 
         now = datetime.now(india)
         d = now.strftime("%d-%m-%Y")
@@ -97,10 +96,10 @@ if st.session_state.role is None:
             st.rerun()
 
         else:
-            st.error("Wrong password")
+            st.error("❌ Wrong password")
 
 # =====================================================
-# 🏠 DASHBOARD (AFTER LOGIN)
+# 🏠 DASHBOARD
 # =====================================================
 else:
 
@@ -112,7 +111,7 @@ else:
 
     st.sidebar.success(f"Logged in as: {st.session_state.role}")
 
-    if st.sidebar.button("Logout"):
+    if st.sidebar.button("Logout", key="logout_btn"):
         st.session_state.role = None
         st.rerun()
 
@@ -126,7 +125,7 @@ else:
 
     # ---------------- ADMIN RESET ----------------
     if st.session_state.role == "admin":
-        if st.sidebar.button("🔄 Refresh Today"):
+        if st.sidebar.button("🔄 Refresh Today", key="refresh_today"):
             st.session_state.today_data = {}
             st.success("✅ Today reset")
             st.rerun()
@@ -136,7 +135,8 @@ else:
     if not df_att.empty:
         date_sel = st.sidebar.selectbox(
             "Download date",
-            sorted(df_att["Date"].unique(), reverse=True)
+            sorted(df_att["Date"].unique(), reverse=True),
+            key="download_date"
         )
 
         excel = BytesIO()
@@ -145,7 +145,8 @@ else:
         st.sidebar.download_button(
             "⬇ Download Excel",
             data=excel.getvalue(),
-            file_name=f"{date_sel}.xlsx"
+            file_name=f"{date_sel}.xlsx",
+            key="download_excel"
         )
 
     # ---------------- ADMIN LOGS ----------------
@@ -158,16 +159,16 @@ else:
     # ---------------- ADD WORKER ----------------
     st.subheader("➕ Add Customer")
 
-    new_worker = st.text_input("Name (English or Marathi)")
+    new_worker = st.text_input("Name (English or Marathi)", key="new_worker")
 
-    if st.button("Add Worker"):
+    if st.button("Add Worker", key="add_worker"):
         mar = eng_to_marathi(new_worker.strip())
-        if mar not in workers_ws.get_all_values():
+        if mar and mar not in workers_ws.get_all_values():
             workers_ws.append_row([mar])
             st.success(f"Added: {mar}")
             st.rerun()
         else:
-            st.warning("Already exists")
+            st.warning("Already exists or empty")
 
     # ---------------- ATTENDANCE ----------------
     st.divider()
@@ -176,86 +177,83 @@ else:
     workers_df = pd.DataFrame(workers_ws.get_all_records())
     workers = workers_df["Name"].tolist() if not workers_df.empty else []
 
-    search = st.text_input("Search name")
+    search = st.text_input("Search name", key="search_name")
 
-    if search:
+    if search.strip() != "":
         mar = eng_to_marathi(search)
         workers = [n for n in workers if mar in n]
 
+    # ---------------- UI STYLE ----------------
     st.markdown("""
-<style>
-.box {
-    border: 1px solid #ddd;
-    border-radius: 10px;
-    padding: 10px;
-    margin-bottom: 10px;
-}
-.head {
-    font-weight: bold;
-    text-align: center;
-}
-.center {
-    text-align: center;
-}
-</style>
-""", unsafe_allow_html=True)
+    <style>
+    .box {
+        border: 1px solid #ddd;
+        border-radius: 10px;
+        padding: 10px;
+        margin-bottom: 10px;
+    }
+    .head {
+        font-weight: bold;
+        text-align: center;
+    }
+    .center {
+        text-align: center;
+    }
+    </style>
+    """, unsafe_allow_html=True)
 
-for name in workers:
+    for name in workers:
 
-    if name not in st.session_state.today_data:
-        st.session_state.today_data[name] = {
-            "status": "Absent",
-            "banana": 0
-        }
+        if name not in st.session_state.today_data:
+            st.session_state.today_data[name] = {
+                "status": "Absent",
+                "banana": 0
+            }
 
-    st.markdown("<div class='box'>", unsafe_allow_html=True)
+        st.markdown("<div class='box'>", unsafe_allow_html=True)
 
-    col1, col2, col3, col4 = st.columns([4,2,2,2])
+        col1, col2, col3, col4 = st.columns([4,2,2,2])
 
-    # -------- NAME --------
-    with col1:
-        st.markdown("<div class='head'>Name</div>", unsafe_allow_html=True)
-        st.markdown(f"<div class='center'>{name}</div>", unsafe_allow_html=True)
+        with col1:
+            st.markdown("<div class='head'>Name</div>", unsafe_allow_html=True)
+            st.markdown(f"<div class='center'>{name}</div>", unsafe_allow_html=True)
 
-    # -------- TICK --------
-    with col2:
-        st.markdown("<div class='head'>Tick</div>", unsafe_allow_html=True)
-        present = st.checkbox(
-            "",
-            key=f"p_{name}",
-            value=st.session_state.today_data[name]["status"] == "Present"
-        )
+        with col2:
+            st.markdown("<div class='head'>✔ Tick</div>", unsafe_allow_html=True)
+            present = st.checkbox(
+                "",
+                key=f"present_{name}",
+                value=st.session_state.today_data[name]["status"] == "Present"
+            )
 
-    status = "Present" if present else "Absent"
-    st.session_state.today_data[name]["status"] = status
+        status = "Present" if present else "Absent"
+        st.session_state.today_data[name]["status"] = status
 
-    # -------- STATUS --------
-    with col3:
-        st.markdown("<div class='head'>Status</div>", unsafe_allow_html=True)
-        st.markdown(
-            f"<div class='center'>{'🟢 Present' if present else '🔴 Absent'}</div>",
-            unsafe_allow_html=True
-        )
+        with col3:
+            st.markdown("<div class='head'>Status</div>", unsafe_allow_html=True)
+            st.markdown(
+                f"<div class='center'>{'🟢 Present' if present else '🔴 Absent'}</div>",
+                unsafe_allow_html=True
+            )
 
-    # -------- BANANA --------
-    with col4:
-        st.markdown("<div class='head'>🍌 Quantity</div>", unsafe_allow_html=True)
-        banana = st.number_input(
-            "",
-            min_value=0,
-            step=1,
-            key=f"b_{name}",
-            value=st.session_state.today_data[name]["banana"]
-        )
+        with col4:
+            st.markdown("<div class='head'>🍌 Quantity</div>", unsafe_allow_html=True)
+            banana = st.number_input(
+                "",
+                min_value=0,
+                step=1,
+                key=f"banana_{name}",
+                value=st.session_state.today_data[name]["banana"]
+            )
 
-    st.session_state.today_data[name]["banana"] = banana
+        st.session_state.today_data[name]["banana"] = banana
 
-    st.markdown("</div>", unsafe_allow_html=True)
+        st.markdown("</div>", unsafe_allow_html=True)
 
     # ---------------- SAVE ----------------
     st.divider()
 
-    if st.button("💾 Save Attendance"):
+    if st.button("💾 Save Attendance", key="save_attendance"):
         for name, data in st.session_state.today_data.items():
             attendance_ws.append_row([
                 today,
@@ -265,4 +263,4 @@ for name in workers:
                 data["banana"],
                 "NO"
             ])
-        st.success("✅ Attendance saved")
+        st.success("✅ Attendance saved successfully")
